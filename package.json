@@ -1,0 +1,41 @@
+{
+  "name": "gtc",
+  "private": true,
+  "version": "0.0.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "electron": "electron electron/main.js",
+    "start": "concurrently -k \"npm run dev\" \"npm run electron\"",
+    "build": "vite build",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "electron": "^39.1.1",
+    "electron-builder": "^26.0.12",
+    "vite": "^7.1.7",
+    "@vicons/ionicons5": "^0.13.0",
+    "naive-ui": "^2.43.2",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.22"
+  },
+  "build": {
+    "appId": "com.gtc.app",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "win": {
+      "target": ["dir"]
+    }
+  }
+}
