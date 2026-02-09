@@ -4,11 +4,44 @@ const VOWELS = new Set(["α", "ε", "η", "ι", "ο", "υ", "ω"]);
 const DIPHTHONGS = new Set(["αι", "αυ", "ει", "ευ", "οι", "ου", "υι", "ηυ"]);
 
 export function syllabify(word) {
-  word = word.normalize("NFD").replace(/[^\p{L}]/gu, "");
+  // 使用NFD规范化，分解字符和变音符号
+  word = word.normalize("NFD");
+
+  // 存储呼气符号信息：位置和类型（粗糙/平滑）
+  const breathingInfo = [];
+  // 存储分音符号信息：位置
+  const diaeresisInfo = [];
+
+  // 遍历字符，记录符号信息
+  for (let i = 0; i < word.length; i++) {
+    const char = word[i];
+
+    // 检查呼气符号
+    if (char === "\u0313" || char === "\u0314") {
+      // 呼气符号出现在元音前，所以实际位置是前一个字符
+      if (i > 0) {
+        const vowelIndex = i - 1;
+        breathingInfo.push({
+          position: vowelIndex,
+          type: char === "\u0313" ? "smooth" : "rough",
+        });
+      }
+    }
+
+    // 检查分音符号
+    else if (char === "\u0308") {
+      if (i > 0) {
+        diaeresisInfo.push(i - 1);
+      }
+    }
+  }
+
+  // 移除所有变音符号，只保留字母
+  word = word.replace(/[\u0300-\u036f]/g, "");
   if (!word) return null;
 
   const results = [];
-  let queue = [{ start:0, index: 0, syllables: [] }];
+  let queue = [{ start: 0, index: 0, syllables: [] }];
 
   while (queue.length > 0) {
     const { start, index, syllables } = queue.shift();
@@ -17,9 +50,17 @@ export function syllabify(word) {
       continue;
     }
 
-    // 找下一个元音
+    // 检查分音符号：如果有分音符号，不能组成双元音
+    let isDiaeresis = diaeresisInfo.some(
+      (pos) => pos === index || pos === index + 1,
+    );
     let nucleus = 0;
-    if (index + 1 < word.length && DIPHTHONGS.has(word.substring(index, index + 2))
+
+    // 只有在没有分音符号的情况下才检查双元音
+    if (
+      !isDiaeresis &&
+      index + 1 < word.length &&
+      DIPHTHONGS.has(word.substring(index, index + 2))
     ) {
       nucleus = 2;
     } else if (VOWELS.has(word[index])) {
@@ -43,8 +84,14 @@ export function syllabify(word) {
 
     if (nextIndex === word.length) {
       // 末尾音节，全部归入当前音节
-      const newSyllable = word.substring(start);
-      results.push([...syllables, newSyllable]);
+      const rawSyllable = word.substring(start);
+      // 添加呼气符号到音节
+      const syllableWithBreathing = addBreathingToSyllable(
+        rawSyllable,
+        start,
+        breathingInfo,
+      );
+      results.push([...syllables, syllableWithBreathing]);
       continue;
     }
 
@@ -62,10 +109,47 @@ export function syllabify(word) {
     }
 
     for (const cut of cutPositions) {
-      const newSyllable = word.substring(start, cut);
-      queue.push({ start: cut, index: nextIndex, syllables: [...syllables, newSyllable] });
+      const rawSyllable = word.substring(start, cut);
+      // 添加呼气符号到音节
+      const syllableWithBreathing = addBreathingToSyllable(
+        rawSyllable,
+        start,
+        breathingInfo,
+      );
+      queue.push({
+        start: cut,
+        index: nextIndex,
+        syllables: [...syllables, syllableWithBreathing],
+      });
     }
   }
 
   return results;
+}
+
+// 辅助函数：为音节添加呼气符号
+function addBreathingToSyllable(syllable, startPos, breathingInfo) {
+  // 检查音节中的每个字符是否需要添加呼气符号
+  let result = "";
+
+  for (let i = 0; i < syllable.length; i++) {
+    const char = syllable[i];
+    const originalPos = startPos + i;
+
+    // 查找这个位置是否有呼气符号
+    const breathing = breathingInfo.find(
+      (info) => info.position === originalPos,
+    );
+
+    if (breathing && VOWELS.has(char)) {
+      // 添加呼气符号
+      const breathingChar = breathing.type === "smooth" ? "\u0313" : "\u0314";
+      // 呼气符号在元音之前
+      result = result + char + breathingChar;
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
 }

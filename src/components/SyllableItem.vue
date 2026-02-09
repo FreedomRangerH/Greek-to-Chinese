@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { Checkmark, Close } from "@vicons/ionicons5";
 import { useDataStore } from "../data";
 const data = useDataStore();
@@ -56,4 +56,8 @@ function edit() {
 function reset() {
   pronunce.value = props.pair[1];
 }
+
+watch(() => props.pair[1], (newValue) => {
+  pronunce.value = newValue;
+});
 </script>
